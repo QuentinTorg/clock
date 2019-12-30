@@ -222,11 +222,8 @@ void setup()
     initClockPins();
     rtcClock_.init(globTime_);
     //Serial.begin(9600);
-
-    // send all axes to zero, then tell objects to reset to zero
-    zero_all(200, 2000);
-    gantry_.zero();
-    hourHand_.zero();
+    gantry_.init();
+    hourHand_.init();
 }
 
 unsigned long time{0}, lastTime{0};

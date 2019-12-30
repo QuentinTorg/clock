@@ -26,110 +26,43 @@ const int BUTTON3 = A7;
 // initializes motor pins - must be called before any of the following functions
 void initClockPins()
 {
-  // x motor setup
-  pinMode(MXSTEP, OUTPUT);
-  pinMode(MXDIR, OUTPUT);
-
-  // y motor setup
-  pinMode(MYSTEP, OUTPUT);
-  pinMode(MYDIR, OUTPUT);
-
-  // hour motor setup
-  pinMode(MHSTEP, OUTPUT);
-  pinMode(MHDIR, OUTPUT);
-
-  // zeroing switch setup
-  pinMode(LSWITCHY, INPUT_PULLUP);
-  pinMode(LSWITCHX, INPUT_PULLUP);
-  pinMode(LSWITCHH, INPUT_PULLUP);
-
   pinMode(BUTTON1, INPUT_PULLUP);
   pinMode(BUTTON2, INPUT_PULLUP);
   pinMode(BUTTON3, INPUT_PULLUP);
 }
 
-// step the hour hand in a direction
-void h_step(unsigned char dir)
+template <unsigned step_pin, unsigned dir_pin, unsigned lim_pin, bool flipped>
+class Motor
 {
-  dir = dir == HIGH ? LOW : HIGH;
-  digitalWrite(MHDIR, dir);
-  digitalWrite(MHSTEP, HIGH);
-  digitalWrite(MHSTEP, LOW);
-}
-
-// step the gantry x-axis in a direction
-void x_step(unsigned char dir)
-{
- dir = dir == HIGH ? LOW : HIGH;
- digitalWrite(MXDIR, dir);
- digitalWrite(MXSTEP, HIGH);
- digitalWrite(MXSTEP, LOW);
-}
-
-// step the gantry y-axis in a direction
-void y_step(unsigned char dir)
-{
-  digitalWrite(MYDIR, dir);
-  digitalWrite(MYSTEP, HIGH);
-  digitalWrite(MYSTEP, LOW);
-}
-
-// move y towards zero if not zeroed
-bool zeroy(bool dir)
-{
-  if (digitalRead(LSWITCHY) == dir) 
-  {
-    y_step(dir);
-    return false;
-  }
-  return true;
-}
-
-// move x towards zero if not zeroed
-bool zerox(bool dir)
-{
-  if (digitalRead(LSWITCHX) == dir) {
-    x_step(dir);
-    return false;
-  }
-  return true;
-}
-
-// move h towards zero if not zeroed
-bool zeroh(bool dir)
-{
-  if (digitalRead(LSWITCHH) == dir) {
-    h_step(dir);
-    return false;
-  }
-  return true;
-}
-
-// zero all axes
-void zero_all(int fast_delay_micros, int slow_delay_micros)
-{
-  bool x_zeroed = false;
-  bool y_zeroed = false;
-  bool h_zeroed = false;
-  bool directions[] = {DIR_MINUS, DIR_PLUS, DIR_MINUS};
-  unsigned int delays[] = {fast_delay_micros, fast_delay_micros, slow_delay_micros};
-
-  // will go towards limit quickly, away from limit quickly, then approach limit again slowly
-  // makes sure that we did not start with limit switch alread depressed
-  for (int i = 0; i < 3 ; i++)
-  {
-    while (!x_zeroed || !y_zeroed || !h_zeroed)
+  public:
+    void init()
     {
-      x_zeroed = zerox(directions[i]);
-      y_zeroed = zeroy(directions[i]);
-      h_zeroed = zeroh(directions[i]);
-      delayMicroseconds(delays[i]);
+        pinMode(step_pin, OUTPUT);
+        pinMode(dir_pin, OUTPUT);
+        pinMode(lim_pin, INPUT_PULLUP);
     }
-    x_zeroed = false;
-    y_zeroed = false;
-    h_zeroed = false;
-  }
-}
+
+    void step(unsigned char dir)
+    {
+        if (flipped)
+        {
+            dir = dir == HIGH ? LOW : HIGH;
+        }
+        digitalWrite(dir_pin, dir);
+        digitalWrite(step_pin, HIGH);
+        digitalWrite(step_pin, LOW);
+    }
+
+    bool zero_step(unsigned char dir)
+    {
+        if (digitalRead(lim_pin) == dir)
+        {
+            step(dir);
+            return false;
+        }
+        return true;
+    }
+};
 
 // higher level abstractions
 using pos_t=unsigned long;
@@ -152,13 +85,40 @@ struct Point
 class Gantry
 {
 private:
+    Motor<MXSTEP, MXDIR, LSWITCHX, true> x_motor_;
+    Motor<MYSTEP, MYDIR, LSWITCHY, false> y_motor_;
     Point dst_ {0,0};
     Point pos_ {0,0};
     Point prev_ {0,0};
     unsigned long delta;
 public:
+
+    void init()
+    {
+      x_motor_.init();
+      y_motor_.init();
+      zero();
+    }
+
     void zero()
     {
+        bool directions[] = {DIR_MINUS, DIR_PLUS, DIR_MINUS};
+        unsigned int delays[] = {200, 200, 2000};
+
+        // will go towards limit quickly, away from limit quickly, then approach limit again slowly
+        // makes sure that we did not start with limit switch alread depressed
+        for (int i = 0; i < 3 ; i++)
+        {
+            bool x_zeroed = false;
+            bool y_zeroed = false;
+            while (!x_zeroed || !y_zeroed)
+            {
+                x_zeroed = x_motor_.zero_step(directions[i]);
+                y_zeroed = y_motor_.zero_step(directions[i]);
+                delayMicroseconds(delays[i]);
+            }
+        }
+
         pos_ = {0,0};
     }
 
@@ -172,24 +132,24 @@ public:
         {
           if (pos_.x < dst_.x)
           {
-              x_step(DIR_PLUS);
+              x_motor_.step(DIR_PLUS);
               ++pos_.x;
           }
           else if (pos_.x > dst_.x)
           {
-              x_step(DIR_MINUS);
+              x_motor_.step(DIR_MINUS);
               --pos_.x;
           }
         }
 
         if (pos_.y < dst_.y)
         {
-            y_step(DIR_PLUS);
+            y_motor_.step(DIR_PLUS);
             ++pos_.y;
         }
         else if (pos_.y > dst_.y)
         {
-            y_step(DIR_MINUS);
+            y_motor_.step(DIR_MINUS);
             --pos_.y;
         }
     }
@@ -198,12 +158,34 @@ public:
 class HourHand
 {
 private:
+    Motor<MHSTEP, MHDIR, LSWITCHH, true> motor_;
     pos_t pos_ {0}; // model of where we're supposed to be
     pos_t dst_ {0}; // actual cursor location
     unsigned long delta {0};
 public:
+    void init()
+    {
+        motor_.init();
+        zero();
+    }
+
     void zero()
     {
+        bool directions[] = {DIR_MINUS, DIR_PLUS, DIR_MINUS};
+        unsigned int delays[] = {400, 200, 2000};
+
+        // will go towards limit quickly, away from limit quickly, then approach limit again slowly
+        // makes sure that we did not start with limit switch alread depressed
+        for (int i = 0; i < 3 ; i++)
+        {
+            bool zeroed = false;
+            while (!zeroed)
+            {
+                zeroed = motor_.zero_step(directions[i]);
+                delayMicroseconds(delays[i]);
+            }
+        }
+
         pos_ = 0;
     }
 
@@ -216,12 +198,12 @@ public:
     {
         if (pos_ < dst_)
         {
-            h_step(DIR_PLUS);
+            motor_.step(DIR_PLUS);
             ++pos_;
         }
         else if (pos_ > dst_)
         {
-            h_step(DIR_MINUS);
+            motor_.step(DIR_MINUS);
             --pos_;
         }
     }
