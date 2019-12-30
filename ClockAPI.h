@@ -106,6 +106,16 @@ using pos_t=unsigned long;
 struct Point
 {
     pos_t x,y;
+
+    Point operator+(const Point &o) const
+    {
+        return {x+o.x,y+o.y};
+    }
+
+    Point operator*(const pos_t o) const
+    {
+        return {x*o,y*o};
+    }
 };
 
 class Gantry
@@ -129,6 +139,30 @@ public:
 
     void update(unsigned dt)
     {
+        for (int i=0; i<7; ++i)
+        {
+          if (pos_.x < dst_.x)
+          {
+              x_step(DIR_PLUS);
+              ++pos_.x;
+          }
+          else if (pos_.x > dst_.x)
+          {
+              x_step(DIR_MINUS);
+              --pos_.x;
+          }
+        }
+
+        if (pos_.y < dst_.y)
+        {
+            y_step(DIR_PLUS);
+            ++pos_.y;
+        }
+        else if (pos_.y > dst_.y)
+        {
+            y_step(DIR_MINUS);
+            --pos_.y;
+        }
     }
 };
 
@@ -146,10 +180,21 @@ public:
 
     void moveTo(pos_t dst)
     {
+        dst_ = dst;
     }
 
     void update(unsigned dt)
     {
+        if (pos_ < dst_)
+        {
+            h_step(DIR_PLUS);
+            ++pos_;
+        }
+        else if (pos_ > dst_)
+        {
+            h_step(DIR_MINUS);
+            --pos_;
+        }
     }
 };
 
