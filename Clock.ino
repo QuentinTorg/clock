@@ -11,14 +11,20 @@ struct Time
 
     operator<(const Time &o)
     {
-        return Hour<o.Hour && Min < o.Min &&
-            Sec < o.Sec && Min < o.Mil;
+        return Hour <= o.Hour && Min <= o.Min &&
+            Sec <= o.Sec && Min < o.Mil;
+    }
+
+    operator<=(const Time &o)
+    {
+        return Hour<=o.Hour && Min <= o.Min &&
+            Sec <= o.Sec && Min <= o.Mil;
     }
 
     operator>(const Time &o)
     {
-        return Hour>o.Hour && Min > o.Min &&
-            Sec > o.Sec && Min > o.Mil;
+        return Hour >= o.Hour && Min >= o.Min &&
+            Sec >= o.Sec && Min > o.Mil;
     }
 
     operator>=(const Time &o)
@@ -141,7 +147,7 @@ public:
      *    1      4
      *    |      |
      *    6------5
-     * 
+     *
      * Where the entire path takes Duration to complete, then repeats
      */
 
@@ -214,9 +220,10 @@ HourHand hourHand_;
 void setup()
 {
     initClockPins();
-    rtcClock_.init(globTime_);    
-    gantry_.zero();
-    hourHand_.zero();
+    rtcClock_.init(globTime_);
+    //Serial.begin(9600);
+    gantry_.init();
+    hourHand_.init();
 }
 
 unsigned long time{0}, lastTime{0};
