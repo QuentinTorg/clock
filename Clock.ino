@@ -147,7 +147,7 @@ public:
      *    1      4
      *    |      |
      *    6------5
-     * 
+     *
      * Where the entire path takes Duration to complete, then repeats
      */
 
@@ -221,9 +221,10 @@ void setup()
 {
     initClockPins();
     rtcClock_.init(globTime_);
+    //Serial.begin(9600);
 
     // send all axes to zero, then tell objects to reset to zero
-    zero_all(100, 1000);
+    zero_all(200, 2000);
     gantry_.zero();
     hourHand_.zero();
 }

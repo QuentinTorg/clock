@@ -7,8 +7,8 @@ const int MYSTEP = 5;
 const int MYDIR = 4;
 
 // hour axis pins
-const int MHSTEP = A2; //A2
-const int MHDIR = A3; //A3
+const int MHSTEP = 7; //A2
+const int MHDIR = 6; //A3
 
 // motor directions
 const unsigned char DIR_MINUS = HIGH;
@@ -52,7 +52,6 @@ void initClockPins()
 void h_step(unsigned char dir)
 {
   dir = dir == HIGH ? LOW : HIGH;
-  Serial.println("in h_step");
   digitalWrite(MHDIR, dir);
   digitalWrite(MHSTEP, HIGH);
   digitalWrite(MHSTEP, LOW);
@@ -126,6 +125,9 @@ void zero_all(int fast_delay_micros, int slow_delay_micros)
       h_zeroed = zeroh(directions[i]);
       delayMicroseconds(delays[i]);
     }
+    x_zeroed = false;
+    y_zeroed = false;
+    h_zeroed = false;
   }
 }
 
