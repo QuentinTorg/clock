@@ -103,7 +103,7 @@ public:
     void zero()
     {
         bool directions[] = {DIR_MINUS, DIR_PLUS, DIR_MINUS};
-        unsigned int delays[] = {200, 200, 2000};
+        unsigned delays[] = {200, 200, 2000};
 
         // will go towards limit quickly, away from limit quickly, then approach limit again slowly
         // makes sure that we did not start with limit switch alread depressed
