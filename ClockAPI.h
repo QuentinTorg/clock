@@ -113,7 +113,7 @@ void zero_all(int fast_delay_micros, int slow_delay_micros)
   bool y_zeroed = false;
   bool h_zeroed = false;
   bool directions[] = {DIR_MINUS, DIR_PLUS, DIR_MINUS};
-  bool delays[] = {fast_delay_micros, fast_delay_micros, slow_delay_micros};
+  unsigned int delays[] = {fast_delay_micros, fast_delay_micros, slow_delay_micros};
 
   // will go towards limit quickly, away from limit quickly, then approach limit again slowly
   // makes sure that we did not start with limit switch alread depressed

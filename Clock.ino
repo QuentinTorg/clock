@@ -33,8 +33,6 @@ struct Time
             Sec >= o.Sec && Min >= o.Mil;
     }
 
-    
-
     void addMillis(unsigned milliseconds)
     {
         Mil += milliseconds;
@@ -222,10 +220,10 @@ HourHand hourHand_;
 void setup()
 {
     initClockPins();
-    rtcClock_.init(globTime_); 
+    rtcClock_.init(globTime_);
 
     // send all axes to zero, then tell objects to reset to zero
-    zero_all(100, 1000);   
+    zero_all(100, 1000);
     gantry_.zero();
     hourHand_.zero();
 }
