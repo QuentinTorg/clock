@@ -11,14 +11,20 @@ struct Time
 
     operator<(const Time &o)
     {
-        return Hour<o.Hour && Min < o.Min &&
-            Sec < o.Sec && Min < o.Mil;
+        return Hour <= o.Hour && Min <= o.Min &&
+            Sec <= o.Sec && Min < o.Mil;
+    }
+
+    operator<=(const Time &o)
+    {
+        return Hour<=o.Hour && Min <= o.Min &&
+            Sec <= o.Sec && Min <= o.Mil;
     }
 
     operator>(const Time &o)
     {
-        return Hour>o.Hour && Min > o.Min &&
-            Sec > o.Sec && Min > o.Mil;
+        return Hour >= o.Hour && Min >= o.Min &&
+            Sec >= o.Sec && Min > o.Mil;
     }
 
     operator>=(const Time &o)
@@ -26,6 +32,8 @@ struct Time
         return Hour>=o.Hour && Min >= o.Min &&
             Sec >= o.Sec && Min >= o.Mil;
     }
+
+    
 
     void addMillis(unsigned milliseconds)
     {
@@ -214,7 +222,10 @@ HourHand hourHand_;
 void setup()
 {
     initClockPins();
-    rtcClock_.init(globTime_);    
+    rtcClock_.init(globTime_); 
+
+    // send all axes to zero, then tell objects to reset to zero
+    zero_all(100, 1000);   
     gantry_.zero();
     hourHand_.zero();
 }

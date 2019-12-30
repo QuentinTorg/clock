@@ -34,6 +34,10 @@ void initClockPins()
   pinMode(MYSTEP, OUTPUT);
   pinMode(MYDIR, OUTPUT);
 
+  // hour motor setup
+  pinMode(MHSTEP, OUTPUT);
+  pinMode(MHDIR, OUTPUT);
+
   // zeroing switch setup
   pinMode(LSWITCHY, INPUT_PULLUP);
   pinMode(LSWITCHX, INPUT_PULLUP);
@@ -44,7 +48,6 @@ void initClockPins()
   pinMode(BUTTON3, INPUT_PULLUP);
 }
 
-constexpr unsigned MOTOR_POLLING_TIMEOUT = 900;
 // step the hour hand in a direction
 void h_step(unsigned char dir)
 {
@@ -52,7 +55,6 @@ void h_step(unsigned char dir)
   Serial.println("in h_step");
   digitalWrite(MHDIR, dir);
   digitalWrite(MHSTEP, HIGH);
-  delayMicroseconds(MOTOR_POLLING_TIMEOUT);
   digitalWrite(MHSTEP, LOW);
 }
 
@@ -62,7 +64,6 @@ void x_step(unsigned char dir)
  dir = dir == HIGH ? LOW : HIGH;
  digitalWrite(MXDIR, dir);
  digitalWrite(MXSTEP, HIGH);
- delayMicroseconds(MOTOR_POLLING_TIMEOUT);
  digitalWrite(MXSTEP, LOW);
 }
 
@@ -71,33 +72,61 @@ void y_step(unsigned char dir)
 {
   digitalWrite(MYDIR, dir);
   digitalWrite(MYSTEP, HIGH);
-  delayMicroseconds(MOTOR_POLLING_TIMEOUT);
   digitalWrite(MYSTEP, LOW);
 }
 
-// zero the y
-void zeroy()
+// move y towards zero if not zeroed
+bool zeroy(bool dir)
 {
-  while (digitalRead(LSWITCHY))
+  if (digitalRead(LSWITCHY) == dir) 
   {
-    y_step(DIR_MINUS);
+    y_step(dir);
+    return false;
   }
+  return true;
 }
 
-void zerox()
+// move x towards zero if not zeroed
+bool zerox(bool dir)
 {
-  while (digitalRead(LSWITCHX)) {
-    x_step(DIR_MINUS);
+  if (digitalRead(LSWITCHX) == dir) {
+    x_step(dir);
+    return false;
   }
+  return true;
 }
 
-void zeroh()
+// move h towards zero if not zeroed
+bool zeroh(bool dir)
 {
-  Serial.println("zeroing h");
-  while (digitalRead(LSWITCHH)) {
-    h_step(DIR_MINUS);
+  if (digitalRead(LSWITCHH) == dir) {
+    h_step(dir);
+    return false;
   }
-  Serial.println("done zeroing h");
+  return true;
+}
+
+// zero all axes
+void zero_all(int fast_delay_micros, int slow_delay_micros)
+{
+  bool x_zeroed = false;
+  bool y_zeroed = false;
+  bool h_zeroed = false;
+  bool directions[] = {DIR_MINUS, DIR_PLUS, DIR_MINUS};
+  bool delays[] = {fast_delay_micros, fast_delay_micros, slow_delay_micros};
+
+  // will go towards limit quickly, away from limit quickly, then approach limit again slowly
+  // makes sure that we did not start with limit switch alread depressed
+  for (int i = 0; i < 3 ; i++)
+  {
+    while (!x_zeroed || !y_zeroed || !h_zeroed)
+    {
+      x_zeroed = zerox(directions[i]);
+      y_zeroed = zeroy(directions[i]);
+      h_zeroed = zeroh(directions[i]);
+      delayMicroseconds(delays[i]);
+    }
+  }
 }
 
 // higher level abstractions
@@ -128,8 +157,6 @@ private:
 public:
     void zero()
     {
-        zerox();
-        zeroy();
         pos_ = {0,0};
     }
 
@@ -175,7 +202,7 @@ private:
 public:
     void zero()
     {
-        zeroh();
+        pos_ = 0;
     }
 
     void moveTo(pos_t dst)
