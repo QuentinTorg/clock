@@ -1,5 +1,5 @@
 #include "ClockAPI.h"
-//#include "TimeUtils.h"
+#include "TimeUtils.h"
 //#include "PathUtils.h"
 
 
@@ -13,10 +13,18 @@
 
 Gantry gantry_;
 HourHand hourHand_;
+Time globTime_;
+
+void clockInterrupt()
+{
+    globTime_.Sec++;
+    globTime_.normalize();
+}
 
 void setup()
 {
     initClockPins();
+    attachInterrupt(digitalPinToInterrupt(SYNCPIN), clockInterrupt, FALLING);
 //    rtcClock_.init(globTime_);
     //Serial.begin(9600);
     gantry_.init();
@@ -24,9 +32,6 @@ void setup()
 
     pinMode(13, OUTPUT);
 }
-
-uint32_t prev_sync_micros{0}, cur_micros{0};
-constexpr uint32_t sync_duration_micros =  60 * 1000000;
 
 void loop()
 {

@@ -1,6 +1,63 @@
 #include <RtcDS3231.h>
 #include <Wire.h>
 
+struct Time
+{
+    uint8_t Hour;
+    uint8_t Min;
+    uint8_t Sec;
+
+    operator<(const Time &o)
+    {
+        return Hour <= o.Hour && Min <= o.Min &&
+            Sec <= o.Sec && Min < o.Min;
+    }
+
+    operator<=(const Time &o)
+    {
+        return Hour<=o.Hour && Min <= o.Min &&
+            Sec <= o.Sec && Min <= o.Min;
+    }
+
+    operator>(const Time &o)
+    {
+        return Hour >= o.Hour && Min >= o.Min &&
+            Sec >= o.Sec && Min > o.Min;
+    }
+
+    operator>=(const Time &o)
+    {
+        return Hour>=o.Hour && Min >= o.Min &&
+            Sec >= o.Sec && Min >= o.Min;
+    }
+
+    void normalize()
+    {
+        while (Sec >= 60)
+        {
+            ++Min;
+            Sec -= 60;
+            while (Min >= 60)
+            {
+                Min -= 60;
+                ++Hour;
+                while (Hour >= 24)
+                {
+                    Hour -= 24;
+                }
+            }
+        }
+    }
+
+    Time& operator+(const Time &time)
+    {
+        Hour += time.Hour;
+        Min += time.Min;
+        Sec += time.Sec;
+        normalize();
+    }
+};
+
 struct TimeRange
 {
     Time begin_;
@@ -19,124 +76,32 @@ struct TimeRange
 };
 
 
-struct Time
-{
-    uint8_t hours;
-    uint8_t mins;
-    uint8_t secs;
-    uint32_t micros;
-
-    operator<(const Time &o)
-    {
-        return Hour <= o.Hour && Min <= o.Min &&
-            Sec <= o.Sec && Min < o.Mil;
-    }
-
-    operator<=(const Time &o)
-    {
-        return Hour<=o.Hour && Min <= o.Min &&
-            Sec <= o.Sec && Min <= o.Mil;
-    }
-
-    operator>(const Time &o)
-    {
-        return Hour >= o.Hour && Min >= o.Min &&
-            Sec >= o.Sec && Min > o.Mil;
-    }
-
-    operator>=(const Time &o)
-    {
-        return Hour>=o.Hour && Min >= o.Min &&
-            Sec >= o.Sec && Min >= o.Mil;
-    }
-
-    void normalize()
-    {
-        while (micros >= 1000000)
-        {
-            micros -= 1000000;
-            ++Sec;
-            while (secs >= 60)
-            {
-                ++mins;
-                secs -= 60;
-                while (mins >= 60)
-                {
-                    mins -= 60;
-                    ++hours;
-                    while (hours >= 24)
-                    {
-                        hours -= 24;
-                    }
-                }
-            }
-        }
-    }
-
-    void addMicros(uint32_t microseconds)
-    {
-        micros += microseconds;
-        normalize();
-    }
-
-   Time& operator+(const uint32_t microseconds)
-   {
-       addMicros(microseconds);
-   }
-
-   Time& operator+(const Time *time)
-   {
-       hours += time.hours;
-       mins += time.mins;
-       secs += time.secs;
-       micros += time.micros;
-       normalize();
-   }
-};
 
 class RTC_Interface
 {
 private:
     RtcDS3231<TwoWire> Rtc{Wire};
-
-    constexpr uint32_t sync_timeout{60 * 1000000};
-    uint32_t last_sync_micros{0};
-
 public:
     void init(Time &time)
     {
-      Rtc.Begin();
-      Rtc.Enable32kHzPin(false);
-      Rtc.SetSquareWavePin(DS3231SquareWavePin_ModeNone);
+        Rtc.Begin();
+        Rtc.Enable32kHzPin(false);
+        Rtc.SetSquareWavePin(DS3231SquareWavePin_ModeNone);
 
-      RtcDateTime now = Rtc.GetDateTime();
-      last_sync_micros = micros();
+        RtcDateTime now = Rtc.GetDateTime();
 
-      time.hours = now.Hour();
-      time.mins  = now.Minute();
-      time.secs  = now.Second();
-      time.micros = 0;
+        time.Hour = now.Hour();
+        time.Min  = now.Minute();
+        time.Sec  = now.Second();
 
     }
 
     void update(Time &time)
     {
-        uint32_t system_micros = micros();
-        if (system_micros - last_sync_micros > sync_timeout)
-        {
-            last_sync_micros = system_micros;
-            RtcDateTime now = Rtc.GetDateTime();
-            globTime.Hour = now.Hour();
-            globTime.Min  = now.Minute();
-            globTime.Sec  = now.Second();
-        }
-
-      timer -= dt;
-      if (timer < 0)
-      {
-
-        timer = timeout;
-      }
+        RtcDateTime now = Rtc.GetDateTime();
+        time.Hour = now.Hour();
+        time.Min  = now.Minute();
+        time.Sec  = now.Second();
     }
 };
 
