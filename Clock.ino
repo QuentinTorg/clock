@@ -34,13 +34,20 @@ void loop()
     // update glob time once per minute, where the minute is tracked with
 
     Point<pos_t>  start_pt{10,10};
+    Point<pos_t>  start_pt1{50,10};
     Point<pos_t>  dest_pt{100,100};
     bool at_dest = false;
 
     while (!gantry_.chase_point(start_pt, micros()));
     { }
+    while (!gantry_.chase_point(start_pt1, micros()));
+    { }
     while (!gantry_.chase_point(dest_pt, micros()));
     { }
+    while (!gantry_.chase_point(start_pt1, micros()));
+    { }
+    delay(1000);
+    //while (true) {}
     //while (!gantry_.chase_point(dest_pt, micros()));
     //{ }
 
