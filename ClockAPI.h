@@ -1,6 +1,8 @@
+#pragma once
+
 // x axis pins
 const int MXSTEP = 3;
-const int MXDIR = 2;
+const int MXDIR = A2;
 
 // y axis pins
 const int MYSTEP = 5;
@@ -11,8 +13,8 @@ const int MHSTEP = 7; //A2
 const int MHDIR = 6; //A3
 
 // motor directions
-const unsigned char DIR_MINUS = HIGH;
-const unsigned char DIR_PLUS = LOW;
+const bool DIR_MINUS = HIGH;
+const bool DIR_PLUS = LOW;
 
 // buttons and switches
 const int LSWITCHY = 10;
@@ -23,27 +25,37 @@ const int BUTTON1 = A3;
 const int BUTTON2 = A6;
 const int BUTTON3 = A7;
 
+const int SYNCPIN = 2;
+
 // initializes motor pins - must be called before any of the following functions
 void initClockPins()
 {
   pinMode(BUTTON1, INPUT_PULLUP);
   pinMode(BUTTON2, INPUT_PULLUP);
   pinMode(BUTTON3, INPUT_PULLUP);
+
 }
 
-template <unsigned step_pin, unsigned dir_pin, unsigned lim_pin, bool flipped>
+// higher level abstractions
+using step_t=int32_t;
+using pos_t=float;
+using ang_t=float;
+
+template <uint8_t step_pin, uint8_t dir_pin, uint8_t lim_pin, bool flipped, uint32_t max_speed>
 class Motor
 {
-  public:
-    void init()
-    {
-        pinMode(step_pin, OUTPUT);
-        pinMode(dir_pin, OUTPUT);
-        pinMode(lim_pin, INPUT_PULLUP);
-    }
+private:
+    static constexpr uint16_t min_step_time = {static_cast<uint16_t>(1000000.0/max_speed + 0.5)}; // micros per step at max speed
 
-    void step(unsigned char dir)
+    uint32_t prev_micros = {0};
+    step_t cur_step = {0};
+    // max speed units: steps per second
+    // max accel units: steps per second per second
+
+    void step(bool dir, uint32_t micros)
     {
+        cur_step = dir == DIR_PLUS ? cur_step + 1 : cur_step - 1;
+
         if (flipped)
         {
             dir = dir == HIGH ? LOW : HIGH;
@@ -51,32 +63,74 @@ class Motor
         digitalWrite(dir_pin, dir);
         digitalWrite(step_pin, HIGH);
         digitalWrite(step_pin, LOW);
+
+        prev_micros = micros;
     }
 
-    bool zero_step(unsigned char dir)
+    bool zero_step(const bool dir)
     {
         if (digitalRead(lim_pin) == dir)
         {
-            step(dir);
+            step(dir, micros());
             return false;
         }
         return true;
     }
+
+public:
+    void init()
+    {
+        pinMode(step_pin, OUTPUT);
+        pinMode(dir_pin, OUTPUT);
+        pinMode(lim_pin, INPUT_PULLUP);
+    }
+
+    void zero(const uint16_t ff_delay, const uint16_t r_delay, const uint16_t sf_delay)
+    {
+        const bool directions[] = {DIR_MINUS, DIR_PLUS, DIR_MINUS};
+        const unsigned delays[] = {ff_delay, r_delay, sf_delay};
+
+        // will go towards limit, away from limit, then approach limit again slowly
+        // makes sure that we did not start with limit switch alread depressed
+        for (int i = 0; i < 3; i++)
+        {
+            while (!zero_step(directions[i]))
+            {
+                delayMicroseconds(delays[i]);
+            }
+        }
+
+        cur_step = 0;
+    }
+
+    // decides direction and step timing to prevent violation of max speed and accel
+    bool chase_step(const step_t target_step, const uint32_t cur_micros)
+    {
+        step_t delta_distance = target_step - cur_step;
+        if (delta_distance == 0) return true;
+
+        uint32_t delta_micros = cur_micros - prev_micros; // rollover is handled well with uints
+        if (delta_micros < min_step_time) return false;
+        bool direction = delta_distance > 0 ? DIR_PLUS : DIR_MINUS;
+        step(direction, cur_micros);
+
+        return false;
+    }
+
 };
 
-// higher level abstractions
-using pos_t=unsigned long;
-
+template <typename T>
 struct Point
 {
-    pos_t x,y;
+    T x,y;
 
-    Point operator+(const Point &o) const
+    Point<T> operator+(const Point<T> &o) const
     {
         return {x+o.x,y+o.y};
     }
 
-    Point operator*(const pos_t o) const
+    template <typename ScalarT>
+    Point<T> operator*(const ScalarT o) const
     {
         return {x*o,y*o};
     }
@@ -85,146 +139,60 @@ struct Point
 class Gantry
 {
 private:
-    Motor<MXSTEP, MXDIR, LSWITCHX, true> x_motor_;
-    Motor<MYSTEP, MYDIR, LSWITCHY, false> y_motor_;
-    Point dst_ {0,0};
-    Point pos_ {0,0};
-    Point prev_ {0,0};
-    unsigned long delta;
+    static constexpr uint8_t steps_per_mm_ = {200 * 16 / 20 / 2};
+
+    Motor<MXSTEP, MXDIR, LSWITCHX, true, steps_per_mm_ * static_cast<uint32_t>(100)> x_motor_;
+    Motor<MYSTEP, MYDIR, LSWITCHY, false, steps_per_mm_ * static_cast<uint32_t>(100)> y_motor_;
+
+    // 200 full steps per rev
+    // 16 microstepping
+    // 20 teeth per rev pulley
+    // 2mm travel per tooth
+
+    Point<step_t> mm_to_steps(const Point<pos_t> &mm_point) {
+        return Point<step_t>{static_cast<step_t>(mm_point.x * steps_per_mm_ + 0.5), static_cast<step_t>(mm_point.y * steps_per_mm_ + 0.5)};
+    }
+
 public:
 
     void init()
     {
-      x_motor_.init();
       y_motor_.init();
-      zero();
+      x_motor_.init();
+
+      y_motor_.zero(200, 5000, 5000);
+      x_motor_.zero(200, 5000, 5000);
     }
 
-    void zero()
+    bool chase_point(const Point<pos_t> &point_mm, const uint32_t cur_micros)
     {
-        bool directions[] = {DIR_MINUS, DIR_PLUS, DIR_MINUS};
-        unsigned delays[] = {200, 200, 2000};
-
-        // will go towards limit quickly, away from limit quickly, then approach limit again slowly
-        // makes sure that we did not start with limit switch alread depressed
-        for (int i = 0; i < 3 ; i++)
-        {
-            bool x_zeroed = false;
-            bool y_zeroed = false;
-            while (!x_zeroed || !y_zeroed)
-            {
-                x_zeroed = x_motor_.zero_step(directions[i]);
-                y_zeroed = y_motor_.zero_step(directions[i]);
-                delayMicroseconds(delays[i]);
-            }
-        }
-
-        pos_ = {0,0};
-    }
-
-    void moveTo(const Point &pt)
-    {
-    }
-
-    void update(unsigned dt)
-    {
-        for (int i=0; i<7; ++i)
-        {
-          if (pos_.x < dst_.x)
-          {
-              x_motor_.step(DIR_PLUS);
-              ++pos_.x;
-          }
-          else if (pos_.x > dst_.x)
-          {
-              x_motor_.step(DIR_MINUS);
-              --pos_.x;
-          }
-        }
-
-        if (pos_.y < dst_.y)
-        {
-            y_motor_.step(DIR_PLUS);
-            ++pos_.y;
-        }
-        else if (pos_.y > dst_.y)
-        {
-            y_motor_.step(DIR_MINUS);
-            --pos_.y;
-        }
+        Point<step_t> point_steps = mm_to_steps(point_mm);
+        bool x_success = x_motor_.chase_step(point_steps.x, cur_micros);
+        bool y_success = y_motor_.chase_step(point_steps.y, cur_micros);
+        return x_success && y_success;
     }
 };
 
 class HourHand
 {
 private:
-    Motor<MHSTEP, MHDIR, LSWITCHH, true> motor_;
-    pos_t pos_ {0}; // model of where we're supposed to be
-    pos_t dst_ {0}; // actual cursor location
-    unsigned long delta {0};
+    static constexpr float steps_per_deg_ = 100; // TODO fix this
+
+    Motor<MHSTEP, MHDIR, LSWITCHH, true, static_cast<uint32_t>(steps_per_deg_ * 100 + 0.5)> motor_;
+
+    step_t angle_to_steps(const ang_t angle) {
+        return steps_per_deg_ * angle + 0.5;
+    }
+
 public:
     void init()
     {
         motor_.init();
-        zero();
+        motor_.zero(400, 5000, 5000);
     }
 
-    void zero()
+    bool chase_angle(const ang_t &angle, const uint32_t &cur_micros)
     {
-        bool directions[] = {DIR_MINUS, DIR_PLUS, DIR_MINUS};
-        unsigned int delays[] = {400, 200, 2000};
-
-        // will go towards limit quickly, away from limit quickly, then approach limit again slowly
-        // makes sure that we did not start with limit switch alread depressed
-        for (int i = 0; i < 3 ; i++)
-        {
-            bool zeroed = false;
-            while (!zeroed)
-            {
-                zeroed = motor_.zero_step(directions[i]);
-                delayMicroseconds(delays[i]);
-            }
-        }
-
-        pos_ = 0;
-    }
-
-    void moveTo(pos_t dst)
-    {
-        dst_ = dst;
-    }
-
-    void update(unsigned dt)
-    {
-        if (pos_ < dst_)
-        {
-            motor_.step(DIR_PLUS);
-            ++pos_;
-        }
-        else if (pos_ > dst_)
-        {
-            motor_.step(DIR_MINUS);
-            --pos_;
-        }
-    }
-};
-
-//unsafe and janky
-template<typename T, unsigned S>
-class FixedVec
-{
-private:
-    T dat_[S];
-    unsigned size_{0};
-public:
-    void push_back(const T& o)
-    {
-        dat_[size_] = o;
-        ++size_;
-    };
-
-    T& operator[](unsigned i)
-    {
-        return dat_[i];
+        return motor_.chase_step(angle_to_steps(angle), cur_micros);
     }
 };
