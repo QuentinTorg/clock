@@ -1,4 +1,4 @@
-#pragma once 
+#pragma once
 
 #include <RtcDS3231.h>
 #include <Wire.h>

@@ -24,33 +24,44 @@ void clockInterrupt()
         micros_ = 0;
 }
 
+uint32_t lastMicros = 0;
+uint32_t curMicros = 0;
 void setup()
-{    
+{
     Serial.begin(9600);
     initClockPins();
+
     pinMode(13, OUTPUT);
+
+    // set up RTC
     rtcClock_.init(globTime_);
     attachInterrupt(digitalPinToInterrupt(SYNCPIN), clockInterrupt, FALLING);
 
-    
+    // set up hours and minutes
     gantry_.init();
     //hourHand_.init();
+
+
+    // set up micros tracking
+    int sec = globTime_.Sec;
+    while (sec == globTime_.Sec) { } // wait until the next second changeover
+    micros_ = globTime_.Sec * 1000000;  // assign micros_. not perfect but very close
+    curMicros = micros();
+    lastMicros = curMicros;
 }
 
-uint64_t lastMicros = 0;
-uint64_t curMicros = 0;
-Point<pos_t> center{50.0,50};
-SquarePath minute_box(25.0, static_cast<uint32_t>(60000000) / 4.5); // should do 2.5 revolutions in 6e7 seconds
+MinutesPathMapper minutesPath_;
 void loop()
 {
     curMicros = micros();
-    if (lastMicros==0) lastMicros = curMicros;
     micros_ += (curMicros - lastMicros);
     lastMicros = curMicros;
-    
-    gantry_.chase_point(center + minute_box.getPos(micros_), curMicros);
-        
-    
+
+    auto point = minutesPath_(globTime_.Min, micros_);
+    gantry_.chase_point(point, curMicros);
+
+
+
 
 
 
