@@ -1,3 +1,5 @@
+#pragma once 
+
 #include <RtcDS3231.h>
 #include <Wire.h>
 
@@ -86,7 +88,8 @@ public:
     {
         Rtc.Begin();
         Rtc.Enable32kHzPin(false);
-        Rtc.SetSquareWavePin(DS3231SquareWavePin_ModeNone);
+        Rtc.SetSquareWavePinClockFrequency(DS3231SquareWaveClock_1Hz);
+        Rtc.SetSquareWavePin(DS3231SquareWavePin_ModeClock, false);
 
         RtcDateTime now = Rtc.GetDateTime();
 
@@ -104,4 +107,3 @@ public:
         time.Sec  = now.Second();
     }
 };
-

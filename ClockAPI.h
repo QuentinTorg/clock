@@ -1,3 +1,5 @@
+#pragma once
+
 // x axis pins
 const int MXSTEP = 3;
 const int MXDIR = A2;
@@ -117,7 +119,6 @@ public:
 
 };
 
-
 template <typename T>
 struct Point
 {
@@ -140,8 +141,8 @@ class Gantry
 private:
     static constexpr uint8_t steps_per_mm_ = {200 * 16 / 20 / 2};
 
-    Motor<MXSTEP, MXDIR, LSWITCHX, true, steps_per_mm_ * static_cast<uint32_t>(20)> x_motor_;
-    Motor<MYSTEP, MYDIR, LSWITCHY, false, steps_per_mm_ * static_cast<uint32_t>(20)> y_motor_;
+    Motor<MXSTEP, MXDIR, LSWITCHX, true, steps_per_mm_ * static_cast<uint32_t>(100)> x_motor_;
+    Motor<MYSTEP, MYDIR, LSWITCHY, false, steps_per_mm_ * static_cast<uint32_t>(100)> y_motor_;
 
     // 200 full steps per rev
     // 16 microstepping
