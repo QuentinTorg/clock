@@ -29,11 +29,11 @@ private:
     const int32_t D_;
 
 public:
-    LinePath(unsigned long Radius, unsigned long Duration) : S_(Radius), D_(Duration)
+    constexpr LinePath(unsigned long Radius, unsigned long Duration) : S_(Radius), D_(Duration)
     {
     };
 
-    Point<pos_t> getPos(int32_t micros)
+    Point<pos_t> getPos(int32_t micros) const
     {
         micros = micros % D_;
         if (micros < D_/2)
@@ -109,18 +109,26 @@ class MinutesPathMapper
 {
 private:
     // TODO: fix these constants
-    static constexpr Point<pos_t> gridDims_mm_{300.0, 300.0};
-    static constexpr Point<uint8_t> gridSize_{10, 6};
-    static constexpr Point<pos_t> gridOffset_{25.0, 25.0};
+
+    static constexpr Point<pos_t> gridDims_mm_{142.0 * 10.0 / 6.0, 148.0 * 6.0 / 4.0};
+    static inline constexpr Point<uint8_t> gridSize_{10, 6};
+    static constexpr Point<pos_t> gridOffset_{40.0, 28.0};
     static constexpr Point<pos_t> gridSpacing_{gridDims_mm_.x / gridSize_.x, gridDims_mm_.y / gridSize_.y};
 
     SquarePath minuteSquare_{gridSpacing_.x, static_cast<uint32_t>(static_cast<uint32_t>(60000000) / 3.5)}; // 3.5 loops per minute
 public:
     Point<pos_t> getPos(uint8_t minute, uint32_t micros)
     {
+        if (minute == 0) minute = 60;
+
         // TODO: add some sort of return path for going from 59 seconds to 0.
-        Point<pos_t> minuteCenter{gridSpacing_.x * (minute % gridSize_.x) + gridOffset_.x,
-                                  gridSpacing_.y * (minute / gridSize_.x) + gridOffset_.y};
+        Point<pos_t> minuteCenter{gridSpacing_.x * ((minute-1) % gridSize_.x) + gridOffset_.x,
+                                  gridSpacing_.y * ((minute-1) / gridSize_.x) + gridOffset_.y};
+        //Serial.print(micros);
+        //Serial.print("  ");
+        //Serial.print(minuteCenter.x);
+        //Serial.print(",");
+        //Serial.println(minuteCenter.y);
         return minuteCenter + minuteSquare_.getPos(micros);
     }
 };

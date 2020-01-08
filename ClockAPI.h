@@ -141,8 +141,8 @@ class Gantry
 private:
     static constexpr uint8_t steps_per_mm_ = {200 * 16 / 20 / 2};
 
-    Motor<MXSTEP, MXDIR, LSWITCHX, true, steps_per_mm_ * static_cast<uint32_t>(100)> x_motor_;
-    Motor<MYSTEP, MYDIR, LSWITCHY, false, steps_per_mm_ * static_cast<uint32_t>(100)> y_motor_;
+    Motor<MXSTEP, MXDIR, LSWITCHX, true, steps_per_mm_ * static_cast<uint32_t>(75)> x_motor_;
+    Motor<MYSTEP, MYDIR, LSWITCHY, false, steps_per_mm_ * static_cast<uint32_t>(75)> y_motor_;
 
     // 200 full steps per rev
     // 16 microstepping
@@ -160,8 +160,8 @@ public:
       y_motor_.init();
       x_motor_.init();
 
-      y_motor_.zero(200, 5000, 5000);
-      x_motor_.zero(200, 5000, 5000);
+      y_motor_.zero(200, 2000, 2000);
+      x_motor_.zero(200, 2000, 2000);
     }
 
     bool chase_point(const Point<pos_t> &point_mm, const uint32_t cur_micros)

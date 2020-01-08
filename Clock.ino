@@ -28,7 +28,8 @@ uint32_t lastMicros = 0;
 uint32_t curMicros = 0;
 void setup()
 {
-    Serial.begin(9600);
+    Serial.begin(115200);
+    Serial.println("starting");
     initClockPins();
 
     pinMode(13, OUTPUT);
@@ -44,7 +45,10 @@ void setup()
 
     // set up micros tracking
     int sec = globTime_.Sec;
-    while (sec == globTime_.Sec) { } // wait until the next second changeover
+    while (sec == globTime_.Sec) 
+    { 
+        Serial.println("waiting for sec");
+    } // wait until the next second changeover
     micros_ = globTime_.Sec * 1000000;  // assign micros_. not perfect but very close
     curMicros = micros();
     lastMicros = curMicros;
@@ -56,15 +60,21 @@ void loop()
     curMicros = micros();
     micros_ += (curMicros - lastMicros);
     lastMicros = curMicros;
+    if (false)
+    {
+        Serial.print(globTime_.Hour);
+        Serial.print(":");
+        Serial.print(globTime_.Min);
+        Serial.print(":");
+        Serial.println(globTime_.Sec);
+    }
+    //gantry_.chase_point(dest, micros());
+    // auto point = minutesPath_.getPos(0, micros_);
+    // gantry_.chase_point(point, curMicros);
+    
+    //     
+    // Serial.println("looping");
 
-    auto point = minutesPath_(globTime_.Min, micros_);
+    auto point = minutesPath_.getPos(globTime_.Min, micros_);
     gantry_.chase_point(point, curMicros);
-
-
-
-
-
-
-
-    // do the dance
 }
