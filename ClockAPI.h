@@ -45,7 +45,7 @@ template <uint8_t step_pin, uint8_t dir_pin, uint8_t lim_pin, bool flipped, uint
 class Motor
 {
 private:
-    static constexpr uint16_t min_step_time = {static_cast<uint16_t>(1000000.0/max_speed + 0.5)}; // micros per step at max speed
+    static constexpr uint16_t min_step_time = {static_cast<uint16_t>(1000000.0/max_speed/TIME_MULTIPLIER + 0.5)}; // micros per step at max speed
 
     uint32_t prev_micros = {0};
     step_t cur_step = {0};
@@ -149,6 +149,7 @@ private:
     // 20 teeth per rev pulley
     // 2mm travel per tooth
 
+
     Point<step_t> mm_to_steps(const Point<pos_t> &mm_point) {
         return Point<step_t>{static_cast<step_t>(mm_point.x * steps_per_mm_ + 0.5), static_cast<step_t>(mm_point.y * steps_per_mm_ + 0.5)};
     }
@@ -176,7 +177,11 @@ public:
 class HourHand
 {
 private:
-    static constexpr float steps_per_deg_ = 100; // TODO fix this
+    // 3:1 gear reduction
+    // 200 full steps per revolution
+    // 16:1 micro-steps to step
+
+    static constexpr float steps_per_deg_ = (3.0*200.0*16.0)/360.0;
 
     Motor<MHSTEP, MHDIR, LSWITCHH, true, static_cast<uint32_t>(steps_per_deg_ * 100 + 0.5)> motor_;
 

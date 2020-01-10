@@ -108,12 +108,11 @@ public:
 class MinutesPathMapper
 {
 private:
-    // TODO: fix these constants
-
-    static constexpr Point<pos_t> gridDims_mm_{142.0 * 10.0 / 6.0, 148.0 * 6.0 / 4.0};
+    // 23.6639 mm spacing between numbers in X
+    // 37.04 mm spacing in y
     static inline constexpr Point<uint8_t> gridSize_{10, 6};
-    static constexpr Point<pos_t> gridOffset_{40.0, 28.0};
-    static constexpr Point<pos_t> gridSpacing_{gridDims_mm_.x / gridSize_.x, gridDims_mm_.y / gridSize_.y};
+    static constexpr Point<pos_t> gridOffset_{40.0, 28.0}; // tune up
+    static constexpr Point<pos_t> gridSpacing_{23.6639, 37.04};
 
     SquarePath minuteSquare_{gridSpacing_.x, static_cast<uint32_t>(static_cast<uint32_t>(60000000) / 3.5)}; // 3.5 loops per minute
 public:
@@ -140,10 +139,11 @@ private:
     // static constexpr unsigned long stepsPerHour = 167;
     // static constexpr unsigned long totalHSteps = 2000;
 
+    // 12.5189 degrees between hours
+    
     // TODO: fix these constants
-    static constexpr pos_t degOffset = 15.0;
-    static constexpr pos_t degTotal = 145.0;
-    static constexpr pos_t degPerHour = 13.0 / degTotal;
+    static constexpr pos_t degOffset = 5.5;
+    static constexpr pos_t degPerHour = 12.5189;
 public:
 
     // TODO: add an animation every hour
@@ -153,6 +153,21 @@ public:
     pos_t getPos(const Time &t, uint32_t micros)
     {
         uint8_t hour = t.Hour > 12 ? t.Hour - 12 : t.Hour; // remove 24 hour timekeeping
+
+        // sweep tech
+        constexpr uint32_t sweepDur = 8000000;
+        //constexpr int seepNum = 1;
+        //if (t.Min%10 == 0 && micros%60000 < sweepDur)
+        uint32_t newmicros = micros%static_cast<uint32_t>(20000000);
+        if (newmicros < sweepDur)
+        {
+            if (newmicros < sweepDur/2)
+                return degOffset + 130.0*(static_cast<pos_t>(newmicros)*2.0/sweepDur);
+//                return 130.0*(newmicros*2.0/sweepDur);
+            else
+                return degOffset + 130.0*(1.0-static_cast<pos_t>(newmicros)/sweepDur);
+//                return 130.0*(sweepDur-static_cast<pos_t>(newmicros)/sweepDur);
+        }
 
         if (hour < 8) { hour += 12; } // handle running from 8-8 range
         if (hour > 12) { hour += 1; } // skip the 13th hour

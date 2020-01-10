@@ -1,11 +1,10 @@
+#define TIME_MULTIPLIER 1
+
 #include "ClockAPI.h"
 #include "TimeUtils.h"
 #include "PathUtils.h"
 
-
-
 // -- MAIN LOGIC BEGIN
-
 
 RTC_Interface rtcClock_;
 //BoardPathMapper pathMapper_;
@@ -18,7 +17,7 @@ uint32_t micros_;
 
 void clockInterrupt()
 {
-    globTime_.Sec++;
+    globTime_.Sec += TIME_MULTIPLIER;
     globTime_.normalize();
     if (globTime_.Sec == 0)
         micros_ = 0;
@@ -40,7 +39,7 @@ void setup()
 
     // set up hours and minutes
     gantry_.init();
-    //hourHand_.init();
+    hourHand_.init();
 
 
     // set up micros tracking
@@ -55,9 +54,10 @@ void setup()
 }
 
 MinutesPathMapper minutesPath_;
+HourPosMapper hourPath_;
 void loop()
 {
-    curMicros = micros();
+    curMicros = micros()*TIME_MULTIPLIER;
     micros_ += (curMicros - lastMicros);
     lastMicros = curMicros;
     if (false)
@@ -68,13 +68,17 @@ void loop()
         Serial.print(":");
         Serial.println(globTime_.Sec);
     }
-    //gantry_.chase_point(dest, micros());
+    // gantry_.chase_point(dest, micros());
     // auto point = minutesPath_.getPos(0, micros_);
     // gantry_.chase_point(point, curMicros);
+
     
     //     
     // Serial.println("looping");
 
     auto point = minutesPath_.getPos(globTime_.Min, micros_);
     gantry_.chase_point(point, curMicros);
+
+    auto angle = hourPath_.getPos(globTime_, micros_);
+    hourHand_.chase_angle(angle, curMicros);
 }
