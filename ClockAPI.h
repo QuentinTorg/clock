@@ -45,7 +45,7 @@ template <uint8_t step_pin, uint8_t dir_pin, uint8_t lim_pin, bool flipped, uint
 class Motor
 {
 private:
-    static constexpr uint16_t min_step_time = {static_cast<uint16_t>(1000000.0/max_speed/TIME_MULTIPLIER + 0.5)}; // micros per step at max speed
+    static constexpr uint16_t min_step_time = {static_cast<uint16_t>(1000000.0/max_speed + 0.5)}; // micros per step at max speed
 
     uint32_t prev_micros = {0};
     step_t cur_step = {0};

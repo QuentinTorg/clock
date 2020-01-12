@@ -127,18 +127,18 @@ private:
     static constexpr Point<pos_t> gridSpacing_{23.6639, 37.04};
     static constexpr float revNum_ = 4.5;
     static constexpr uint32_t revDur_ = static_cast<uint32_t>(static_cast<uint32_t>(60000000) / revNum_);
-    static constexpr int64_t zigDur_ = revDur_*3l;
+    static constexpr int64_t zigDur_ = revDur_*2l;
 
     SquarePath minuteSquare_{gridSpacing_.x, gridSpacing_.y, revDur_}; // 3.5 loops per minute
 
-    constexpr Point<pos_t> minuteCenter(const uint8_t minute) const {
+    constexpr Point<pos_t> minuteCenter(const uint8_t minute) const
+    {
         return {gridSpacing_.x * ((minute-1) % gridSize_.x) + gridOffset_.x,
            gridSpacing_.y * ((minute-1) / gridSize_.x) + gridOffset_.y};
     }
 
-    Point<pos_t> carriageReturn(int32_t min, int32_t micros, int32_t dur)
+    Point<pos_t> carriageReturn(int32_t min, int32_t micros)
     {
-
         // our path from the start and end
         //             A-|
         // |-------------|
@@ -150,28 +150,35 @@ private:
         start.x += gridSpacing_.x/2;
         end.x -= gridSpacing_.x/2;
         
-        const pos_t vDist = end.y - start.y;
-        const pos_t hDist = start.x - end.x;
-        const pos_t travelDist = hDist + vDist;
-        pos_t speed = travelDist/dur;
+        static constexpr pos_t vDist = gridSpacing_.y;
+        static constexpr pos_t hDist = 10*gridSpacing_.x;
+        static constexpr pos_t travelDist = hDist + vDist;
+        static constexpr pos_t speed = travelDist/revDur_;
 
+        static constexpr int64_t dur1 = vDist/2/speed;
+        static constexpr int64_t dur2 = (hDist+vDist/2)/speed;
 
-        if (micros < vDist/2/speed)
+        if (micros < dur1)
             return {start.x, start.y+speed*micros};
-        if (micros < (hDist+vDist/2)/speed)
-            return {start.x - (micros-(vDist/2/speed))*speed, start.y + vDist/2};
+        if (micros < dur2)
+        {
+            static constexpr pos_t yVal = vDist/2;
+            return {start.x - (micros-dur1)*speed, start.y+yVal};
+        }
         else
-            return {end.x,start.y+(vDist/2+(micros-(hDist+vDist/2)/speed))};
+        {
+            static constexpr pos_t yVal = vDist/2;
+            return {end.x, start.y+yVal+(micros-dur2)*speed};
+        }
     }
 
     Point<pos_t> zigZagReturn(int64_t micros)
     {
         // our path from the start and end
-        // B**************
+        // B-------------|
+        // ************* |
         // |-------------|
-        // **************|
-        // |-------------|
-        // |**************
+        // | *************
         // |-------------A
         //
         //
@@ -179,7 +186,7 @@ private:
                                                gridSpacing_.y*5+gridOffset_.y};
         static constexpr Point<pos_t> end = {gridOffset_.x-gridSpacing_.x/2,
                                              gridOffset_.y};
-        static bool firstLoop = true;
+        //static bool firstLoop = true;
 
         static constexpr pos_t vDist = start.y - end.y;
         static constexpr pos_t hDist = start.x - end.x;
@@ -187,54 +194,40 @@ private:
         static constexpr pos_t speed = travelDist/zigDur_;
 
         static constexpr int64_t dur1 = hDist/speed;
-        static constexpr int64_t dur2 = (hDist+2*gridSpacing_.y)/speed;
-        static constexpr int64_t dur3 = (2*hDist+2*gridSpacing_.y)/speed;
-        static constexpr int64_t dur4 = (2*hDist+4*gridSpacing_.y)/speed;
-        static constexpr int64_t dur5 = (3*hDist+4*gridSpacing_.y)/speed;
-
-        if (firstLoop) {
-            //Serial.print(" "); Serial.println();
-            Serial.print("gridSpacing_.x "); Serial.println(gridSpacing_.x);
-            Serial.print("gridSpacing_.y "); Serial.println(gridSpacing_.y);
-            Serial.print("travelDist "); Serial.println(travelDist);
-            Serial.print("hDist "); Serial.println(hDist);
-            Serial.print("speed "); Serial.println(speed*1000000);
-//            Serial.print("dur1 "); Serial.println(dur1);
-            firstLoop = false;
-        }
-
+        static constexpr int64_t dur2 = (hDist+2.5*gridSpacing_.y)/speed;
+        static constexpr int64_t dur3 = (2*hDist+2.5*gridSpacing_.y)/speed;
+        static constexpr int64_t dur4 = (2*hDist+5*gridSpacing_.y)/speed;
 
         if (micros < dur1)
         {
+            // from start, horizontally left across bottom of frame
             return {start.x - speed*micros, start.y};
         }
         if (micros < dur2)
         {
-            static constexpr int64_t timeDur = hDist/speed;
+            // up left side from bottom left corner up to middle left side
+            static constexpr int64_t timeDur = dur1;
             return {end.x, start.y-(micros-timeDur)*speed};
         }
         if (micros < dur3)
         {
-            static constexpr int64_t timeDur = (hDist+2*gridSpacing_.y)/speed;
-            static constexpr pos_t yVal = start.y-2*gridSpacing_.y;
+            // horizontally right across middle of frame
+            static constexpr int64_t timeDur = dur2;
+            static constexpr pos_t yVal = start.y-2.5*gridSpacing_.y;
             return {end.x + (micros-timeDur)*speed, yVal};
         }
         if (micros < dur4)
         {
-            static constexpr int64_t timeDur = (2*hDist+2*gridSpacing_.y)/speed;
-            static constexpr pos_t ySpacing = start.y - 2*gridSpacing_.y;
+            // vertically up from the middle right to top right corner
+            static constexpr int64_t timeDur = dur3;
+            static constexpr pos_t ySpacing = start.y - 2.5*gridSpacing_.y;
             return {start.x, ySpacing - (micros-timeDur)*speed};
         }
-        if (micros < dur5)
         {
-            static constexpr int64_t timeDur = (2*hDist+4*gridSpacing_.y)/speed;
-            static constexpr pos_t yVal = start.y - gridSpacing_.y*4;
+            // horizontally left across top
+            static constexpr int64_t timeDur = dur4;
+            static constexpr pos_t yVal = start.y - gridSpacing_.y*5;
             return {start.x - (micros - timeDur)*speed, yVal};
-        }
-        {
-            static constexpr int64_t timeDur = (3*hDist+4*gridSpacing_.y)/speed;
-            static constexpr pos_t yVal = start.y - 4*gridSpacing_.y;
-            return {end.x, yVal - (micros - timeDur)*speed};
         }
     }
 
@@ -243,15 +236,11 @@ public:
     {
         if (minute == 0) minute = 60;
 
-        constexpr int64_t crpDur = revDur_;
-        if ((minute-1)%10 == 0 && minute != 1 && micros < crpDur)
-            return carriageReturn(minute, micros, crpDur);
+        if ((minute-1)%10 == 0 && minute != 1 && micros < revDur_)
+            return carriageReturn(minute, micros);
 
         if (minute == 1 && micros < zigDur_)
-        {
-            //Serial.println(micros);
             return zigZagReturn(micros);
-        }
 
         return minuteCenter(minute) + minuteSquare_.getPos(micros, minute%2 != 0);
     }
@@ -266,23 +255,24 @@ private:
 
     // 12.5189 degrees between hours
     
-    // TODO: fix these constants
     static constexpr pos_t degOffset = 5.5;
     static constexpr pos_t degPerHour = 12.5189;
+    static constexpr uint32_t sweepDur = 10000000l;
 
-    pos_t doSweep(const Time &t, uint32_t micros, uint8_t hour, uint32_t duration)
+    pos_t doSweep(const Time &t, uint32_t micros, uint8_t hour)
     {
 
         // half the time will be the full right-sweep, the rest of the time will be the 1st left-sweep and reurn-sweep
-        uint32_t quarterDur = duration/4;
-        float sweepSpeed = 0;
+        static constexpr uint32_t quarterDur = sweepDur/4;
         if (hour == 6) // change from 12-1 skips 13
         {
-            sweepSpeed = (13*4-1) * degPerHour / duration;
             hour--;
         }
-        else
-            sweepSpeed = (13.0*degPerHour)/quarterDur;
+        else if (hour == 0)
+        {
+            hour = 13;
+        }
+        static constexpr float sweepSpeed = (13.0*degPerHour)/quarterDur;
 
         const uint32_t leftInterval = degPerHour*hour/sweepSpeed;
 
@@ -311,22 +301,27 @@ private:
         return hour*degPerHour + t.Min*degPerHour/60 + t.Sec*degPerHour/3600 + degOffset;
     }
 public:
-    // TODO: add an animation every hour
-    // will blend the skip over the 13th hour
-    // will show off the clock motion too
-
     pos_t getPos(const Time &t, uint32_t micros)
     {
         uint8_t hour = t.Hour > 12 ? t.Hour - 12 : t.Hour; // remove 24 hour timekeeping
         if (hour < 8) { hour += 12; } // handle running from 8-8 range
         if (hour > 12) { hour += 1; } // skip the 13th hour
         hour -= 8; // index everything back so 8 is 0 index
+        
+        // skipping weird hour transitions
+        if (hour == 6 && t.Min == 0) { hour -= 1; }
+        if (hour == 0 && t.Min == 0) { hour = 13; }
 
-        constexpr uint32_t sweepDur = 10; // in seconds
+        static constexpr uint32_t sweepDurZero = static_cast<uint64_t>(sweepDur) * 3 / 4; // skip 1/4 of the sweep
+        static constexpr uint32_t sweepDurSix = sweepDur - (sweepDur / (4*13)); // skip last hour so it ends @ 1
 
         // sweep condition
-        if (t.Min == 0 && t.Sec < sweepDur)
-            return degOffset + doSweep(t,micros,hour,sweepDur*1000000l);
+        if (t.Min == 1 && 
+            ((micros < sweepDur && hour != 0 && hour != 6) || 
+             (micros < sweepDurZero && hour == 0) ||
+             (micros < sweepDurSix && hour == 6)
+             ))
+            return degOffset + doSweep(t,micros,hour);
 
         return getHourPos(t,hour);
     };
