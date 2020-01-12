@@ -33,8 +33,6 @@ void setup()
     gantry_.init();
     hourHand_.init();
 
-    globTime_.Min = 30;
-
     // assign micros_. not perfect but very close
     micros_ = globTime_.Sec * 1000000;
     curMicros = micros();
