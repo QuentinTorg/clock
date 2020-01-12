@@ -124,13 +124,16 @@ struct Point
 {
     T x,y;
 
-    Point<T> operator+(const Point<T> &o) const
+    constexpr Point() : x(0), y(0) {}
+    constexpr Point(T x, T y) : x(x), y(y) {}
+
+    constexpr Point operator+(const Point &o) const
     {
         return {x+o.x,y+o.y};
     }
 
     template <typename ScalarT>
-    Point<T> operator*(const ScalarT o) const
+    constexpr Point operator*(const ScalarT o) const
     {
         return {x*o,y*o};
     }
@@ -141,8 +144,8 @@ class Gantry
 private:
     static constexpr uint8_t steps_per_mm_ = {200 * 16 / 20 / 2};
 
-    Motor<MXSTEP, MXDIR, LSWITCHX, true, steps_per_mm_ * static_cast<uint32_t>(75)> x_motor_;
-    Motor<MYSTEP, MYDIR, LSWITCHY, false, steps_per_mm_ * static_cast<uint32_t>(75)> y_motor_;
+    Motor<MXSTEP, MXDIR, LSWITCHX, true, steps_per_mm_ * static_cast<uint32_t>(200)> x_motor_;
+    Motor<MYSTEP, MYDIR, LSWITCHY, false, steps_per_mm_ * static_cast<uint32_t>(200)> y_motor_;
 
     // 200 full steps per rev
     // 16 microstepping
@@ -183,7 +186,7 @@ private:
 
     static constexpr float steps_per_deg_ = (3.0*200.0*16.0)/360.0;
 
-    Motor<MHSTEP, MHDIR, LSWITCHH, true, static_cast<uint32_t>(steps_per_deg_ * 100 + 0.5)> motor_;
+    Motor<MHSTEP, MHDIR, LSWITCHH, true, static_cast<uint32_t>(steps_per_deg_ * 150)> motor_;
 
     step_t angle_to_steps(const ang_t angle) {
         return steps_per_deg_ * angle + 0.5;
@@ -193,7 +196,7 @@ public:
     void init()
     {
         motor_.init();
-        motor_.zero(400, 5000, 5000);
+        motor_.zero(400, 2000, 2000);
     }
 
     bool chase_angle(const ang_t &angle, const uint32_t &cur_micros)

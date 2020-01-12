@@ -40,6 +40,9 @@ void setup()
     // set up hours and minutes
     gantry_.init();
     hourHand_.init();
+    globTime_.Hour = 12;
+    globTime_.Min = 0;
+    globTime_.Sec = 45;
 
 
     // set up micros tracking
@@ -55,6 +58,9 @@ void setup()
 
 MinutesPathMapper minutesPath_;
 HourPosMapper hourPath_;
+bool toggle = true;
+const Point<pos_t> point1 = {20.0,20.0};
+const Point<pos_t> point2 = {100.0,20.0};
 void loop()
 {
     curMicros = micros()*TIME_MULTIPLIER;
@@ -68,17 +74,19 @@ void loop()
         Serial.print(":");
         Serial.println(globTime_.Sec);
     }
-    // gantry_.chase_point(dest, micros());
-    // auto point = minutesPath_.getPos(0, micros_);
-    // gantry_.chase_point(point, curMicros);
-
-    
-    //     
-    // Serial.println("looping");
 
     auto point = minutesPath_.getPos(globTime_.Min, micros_);
-    gantry_.chase_point(point, curMicros);
+//    gantry_.chase_point(point, curMicros);
+    if (toggle) 
+    {
+        if (gantry_.chase_point(point1,curMicros)) toggle = !toggle;
+    }
+    else
+    {
+        if (gantry_.chase_point(point2,curMicros)) toggle = !toggle;
+    }
 
     auto angle = hourPath_.getPos(globTime_, micros_);
+    //Serial.println(angle);
     hourHand_.chase_angle(angle, curMicros);
 }
