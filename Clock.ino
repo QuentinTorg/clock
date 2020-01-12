@@ -8,6 +8,8 @@ RTC_Interface rtcClock_;
 Time globTime_;
 uint32_t micros_;
 
+ClockUI clockUI_;
+
 Gantry gantry_;
 HourHand hourHand_;
 
@@ -23,8 +25,6 @@ uint32_t lastMicros = 0;
 uint32_t curMicros = 0;
 void setup()
 {
-    initClockPins();
-
     // set up RTC
     rtcClock_.init(globTime_);
     attachInterrupt(digitalPinToInterrupt(SYNCPIN), clockInterrupt, FALLING);
@@ -32,6 +32,8 @@ void setup()
     // set up hours and minutes
     gantry_.init();
     hourHand_.init();
+
+    clockUI_.init();
 
     // assign micros_. not perfect but very close
     micros_ = globTime_.Sec * 1000000;
@@ -47,9 +49,13 @@ void loop()
     micros_ += (curMicros - lastMicros);
     lastMicros = curMicros;
 
+    clockUI_.update(globTime_, rtcClock_, curMicros);
+
     auto point = minutesPath_.getPos(globTime_.Min, micros_);
     gantry_.chase_point(point, curMicros);
 
     auto angle = hourPath_.getPos(globTime_, micros_);
     hourHand_.chase_angle(angle, curMicros);
+
+
 }

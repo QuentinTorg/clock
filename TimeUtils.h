@@ -106,4 +106,10 @@ public:
         time.Min  = now.Minute();
         time.Sec  = now.Second();
     }
+
+    void set(Time &time)
+    {
+        RtcDateTime now{2020, 1, 1, time.Hour, time.Min, time.Sec};
+        Rtc.SetDateTime(now);
+    }
 };
