@@ -20,14 +20,14 @@ constexpr int LSWITCHX = 9;
 constexpr int LSWITCHH = 8;
 
 // time setting buttons
-constexpr int BUTTON1 = A3;
-constexpr int BUTTON2 = A6;
-constexpr int BUTTON3 = A7;
+constexpr int HR_MIN_BUTTON_PIN = A3;
+constexpr int UP_BUTTON_PIN = A6;
+constexpr int DOWN_BUTTON_PIN = A7;
 
 constexpr int SYNCPIN = 2;
 
 template <uint8_t pin>
-class UpDownButton
+class Button
 {
 public:
     void init()
@@ -38,7 +38,7 @@ public:
     }
 
     // return true on transition from button press, as well as true once per repeatTime after that
-    bool check(const uint32_t micros)
+    bool new_press(const uint32_t micros)
     {
         bool curState = prevState_;
 
@@ -61,6 +61,11 @@ public:
         return wasPushed;
     }
 
+    bool is_pressed()
+    {
+        return digitalRead(pin) == pushed_;
+    }
+
 private:
     static constexpr uint32_t dbTime_ = 10000; // 10ms switch debounce time
     static constexpr uint32_t repeatTime_ = 500000; // repeat every 0.5 seconds
@@ -81,28 +86,27 @@ public:
     {
         upButton.init();
         downButton.init();
-        pinMode(hourMinPin_, INPUT_PULLUP);
+        hrMinButton.init();
     }
 
     void update(Time &time, RTC_Interface &rtc, const uint32_t micros)
     {
-        if (upButton.check(micros))
+        if (upButton.new_press(micros))
         {
             indexTime(time, rtc, up_);
         }
-        if (downButton.check(micros))
+        if (downButton.new_press(micros))
         {
             indexTime(time, rtc, down_);
         }
     }
 
 private:
-    UpDownButton<BUTTON2> upButton;
-    UpDownButton<BUTTON3> downButton;
+    Button<UP_BUTTON_PIN> upButton;
+    Button<DOWN_BUTTON_PIN> downButton;
+    Button<HR_MIN_BUTTON_PIN> hrMinButton;
 
-    static constexpr uint8_t hourMinPin_ = BUTTON1;
-
-    static constexpr bool hourSet_ = HIGH;
+    static constexpr bool hourSet_ = false;
     static constexpr bool minSet_ = !hourSet_;
 
     static constexpr bool up_ = true;
@@ -114,7 +118,7 @@ private:
         int8_t hour = t.Hour;
         int8_t min = t.Min;
 
-        if (digitalRead(hourMinPin_) == hourSet_) hour += increment;
+        if (hrMinButton.is_pressed() == hourSet_) hour += increment;
         else min += increment;
 
         if (hour > 23) hour = 0;

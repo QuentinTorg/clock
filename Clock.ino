@@ -32,7 +32,6 @@ void setup()
     // set up hours and minutes
     gantry_.init();
     hourHand_.init();
-
     clockUI_.init();
 
     // assign micros_. not perfect but very close
