@@ -76,15 +76,15 @@ void loop()
     }
 
     auto point = minutesPath_.getPos(globTime_.Min, micros_);
-//    gantry_.chase_point(point, curMicros);
-    if (toggle) 
-    {
-        if (gantry_.chase_point(point1,curMicros)) toggle = !toggle;
-    }
-    else
-    {
-        if (gantry_.chase_point(point2,curMicros)) toggle = !toggle;
-    }
+    gantry_.chase_point(point, curMicros);
+//    if (toggle) 
+//    {
+//        if (gantry_.chase_point(point1,curMicros)) toggle = !toggle;
+//    }
+//    else
+//    {
+//        if (gantry_.chase_point(point2,curMicros)) toggle = !toggle;
+//    }
 
     auto angle = hourPath_.getPos(globTime_, micros_);
     //Serial.println(angle);
