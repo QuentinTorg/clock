@@ -58,6 +58,15 @@ struct Time
         Sec += time.Sec;
         normalize();
     }
+
+    void print_time()
+    {
+        Serial.print(Hour);
+        Serial.print(":");
+        Serial.print(Min);
+        Serial.print(":");
+        Serial.println(Sec);
+    }
 };
 
 struct TimeRange
